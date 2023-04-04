@@ -24,8 +24,8 @@ h1         h2                       hn      o layer
 import numpy as np
 
 intputSize = 3          # the number of input nodes  (light, ph, ec)
-outputSize = 10         # the number of output nodes (px per day)
-hiddenSize = 7          # the number of nodes in hiddenlayers
+outputSize = 1         # the number of output nodes (px per day)
+hiddenSize = 4          # the number of nodes in hiddenlayers
 hiddenLayerSize = 3     # the number of the hidden layers
 haveSaved = False       # true to use the weight and bias from weightData.txt
 save = True            # admit to save the weight and bias or not
@@ -33,14 +33,16 @@ save = True            # admit to save the weight and bias or not
 # assign all weights and bias
 def initializeNetwork():
     weightTensor = np.array(
-        [[np.random.uniform(-1, 1, intputSize) for _ in range(hiddenSize)]] +
-        [[[np.random.uniform(-1, 1, hiddenSize) for _ in range(hiddenSize)] for _ in range(hiddenLayerSize - 1)]] +
-        [[np.random.uniform(-1, 1, hiddenSize) for _ in range(outputSize)]], dtype=object
+        [np.random.rand(hiddenSize, intputSize),
+        np.array([np.random.rand(hiddenSize, hiddenSize) for _ in range(hiddenLayerSize - 1)]),
+        np.random.rand(hiddenSize, outputSize)],
+        dtype=object
     )
     biasTensor = np.array(
-        [[np.zeros_like(1) for _ in range(hiddenSize)]] +
-        [[[np.zeros_like(1) for _ in range(hiddenSize)] for _ in range(hiddenLayerSize - 1)]] +
-        [[np.zeros_like(1) for _ in range(outputSize)]], dtype=object
+        [np.zeros(hiddenSize),
+        np.array([np.zeros(hiddenSize) for _ in range(hiddenLayerSize - 1)]),
+        np.zeros(outputSize)],
+        dtype=object
     )
     return weightTensor, biasTensor
 
@@ -60,7 +62,7 @@ def softmax(x):
 # Args
 #       weightTensor = current weight tensor
 #       inputData    = input data from input layer
-def activateNodes(weightTensor, bias, inputData):
+def forwardProp(weightTensor, bias, inputData):
     hiddenActive = np.zeros((hiddenLayerSize, hiddenSize), dtype=float)
     outputActive = np.zeros((outputSize), dtype=float)
     activeNode = ReLUIng(np.matmul(weightTensor[0], inputData) + bias[0])
@@ -68,51 +70,64 @@ def activateNodes(weightTensor, bias, inputData):
     for i in range(1, hiddenLayerSize):
         activeNode = ReLUIng(np.matmul(weightTensor[1][i - 1], hiddenActive[i - 1]) + bias[1][i - 1])
         hiddenActive[i] = activeNode
-    outputActive = ReLUIng(np.matmul(weightTensor[2], hiddenActive[-1]) + bias[2])
-    predict = np.round(softmax(outputActive), 3)
-    return predict, outputActive ,hiddenActive
+    outputActive = (np.matmul(np.transpose(weightTensor[2]), hiddenActive[-1]) + bias[2])
+    predict = np.round(ReLUIng(outputActive), 3)
+    return predict, hiddenActive
 
-def trainEach(weightMatrix, biasMatrix, dLoss, dAcFunc):
-    dAcFunc[dAcFunc > 0] = 1
-    gradient = np.array(weightMatrix)
-    gradientBias = np.array(biasMatrix)
-    lenght = gradient.shape[1]
-    for i in range(lenght):
-        weightColumn = gradient[:,i]
-        gradientBias[i] = np.sum(dLoss * dAcFunc * 1)
-        gradient[0][i] = np.sum(dLoss * dAcFunc * weightColumn)
-    return gradient, gradientBias
+def transposeArray(a):
+    temp = np.copy(a)
+    temp = np.transpose(np.matrix(a))
+    return temp
+
+# derivative of the ReLU function
+def dActivation(z):
+    temp = np.copy(z)
+    temp[temp > 0] = 1
+    return temp
 
 # Back propagation
 # Our loss function is RMSE (y_hat - y) ^ 2
-def train(weightTensor, biasTensor, predict, outputActive, hiddenActive, label):
-    gradientWeight, gradientBias = initializeNetwork()
+# Args
+#   weightTensor - current weight
+#   biasTensor - current bias
+#   activeNodes - list contain [hiddenActive, outputActive]
+#   predict - guessed value
+#   label   - answer value
+def backProp(weightTensor, biasTensor, inputData, activeNodes, predict, label):
     learningRate = 0.01
-    lenght = hiddenLayerSize - 2
-    # TODO Fix here
+    tempLenght = hiddenLayerSize - 2
+    # Last Layer
     dLoss = 2 * (predict - label)
-    dAcFunc = outputActive.copy()
-    gradientWeight[2], gradientBias[2] = trainEach(weightTensor[2], biasTensor[2], dLoss, dAcFunc)
-    for i in range(lenght, -1, -1): # hidden size actually have two layer of edges
-        if i == (lenght):
-            dLoss = gradientWeight[2] 
+    dCostBydWeight = transposeArray(activeNodes[-1]) * dActivation(label) * dLoss
+    dCostBydBias   = 1 * dActivation(label) * dLoss
+    weightTensor[2] -= dCostBydWeight * learningRate
+    biasTensor[2]   -= dCostBydBias * learningRate
+    # Hidden layers
+    for i in range(tempLenght, -1, -1):
+        # Last Hidden Layer
+        if i == tempLenght:
+            dLoss = np.sum(weightTensor[2] * dActivation(label) * dLoss, axis=1)
+            dCostBydWeight = transposeArray(activeNodes[i]) * dActivation(activeNodes[i + 1])
+            dCostBydBias   = 1 * dActivation(label) * dLoss
+        # Hidden Layers Else
         else:
-            dLoss = np.array(gradientWeight[1][i])
-        dLoss = dLoss.sum(axis=0)
-        dAcFunc = hiddenActive[i]
-        gradientWeight[1][i], gradientBias[1][i] = trainEach(weightTensor[1][i], biasTensor[1][i], dLoss, dAcFunc)
-    dLoss = np.array(gradientWeight[1][0])
-    dLoss = dLoss.sum(axis=0)
-    dAcFunc = hiddenActive[i]
-    gradientWeight[0], gradientBias[0] = trainEach(weightTensor[0], biasTensor[0], dLoss, dAcFunc)
-    # assgin value result
-    weightTensor[2] -= gradientWeight[2] * learningRate
-    biasTensor[2] -= gradientBias[2] * learningRate
-    for i  in range(lenght):
-        weightTensor[1][i] -= gradientWeight[1][i] * learningRate
-        biasTensor[1][i] -= gradientBias[1][i] * learningRate
-    weightTensor[0] -= gradientWeight[0] * learningRate
-    biasTensor[0] -= gradientBias[0] * learningRate
+            dLoss = np.sum(weightTensor[1][i + 1] * dActivation(activeNodes[i]) * dLoss, axis=1)
+            dCostBydWeight = transposeArray(activeNodes[i]) * dActivation(activeNodes[i + 1])
+            dCostBydBias   = 1 * dActivation(activeNodes[i + 2]) * dLoss
+        # formating the weight tensor
+        for j, value in enumerate(dLoss.copy()):
+            dCostBydWeight[:,j] = dCostBydWeight[:,j] * value
+        weightTensor[1][i] -= dCostBydWeight * learningRate
+        biasTensor[1][i] -= dCostBydBias * learningRate
+    # First Layers
+    dLoss = np.sum(weightTensor[1][0] * dActivation(activeNodes[i]) * dLoss, axis=1)
+    dCostBydWeight = transposeArray(inputData) * dActivation(activeNodes[0])
+    dCostBydBias   = 1 * dActivation(activeNodes[1]) * dLoss
+    for j, value in enumerate(dLoss.copy()):
+        dCostBydWeight[:,j] = dCostBydWeight[:,j] * value
+    weightTensor[0] -= np.transpose(dCostBydWeight) * learningRate
+    biasTensor[0]   -= dCostBydBias * learningRate
+    
     return weightTensor, biasTensor
 
 # MAIN SCRIPT
@@ -120,11 +135,18 @@ def train(weightTensor, biasTensor, predict, outputActive, hiddenActive, label):
 if (haveSaved == False):
     weightTensor, biasTensor = initializeNetwork()
 else:
-    # TODO get the saved dat
+    # TODO get the saved data
     pass
 
-predict, outputActive, hiddenActive  = activateNodes(weightTensor, biasTensor, np.array([10, 10, 10]))
-weightTensor, biasTensor = train(weightTensor, biasTensor, predict, outputActive, hiddenActive, np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1]))
+# test
+label = 1
+inputData = np.array([1, 1, 1])
+
+predict, activeNodes = forwardProp(weightTensor, biasTensor, inputData)
+weightTensor, biasTensor = backProp(weightTensor, biasTensor, inputData, activeNodes, predict, label)
+
 if save:
-    print(biasTensor)
-print("Predict", predict)
+    print(weightTensor)
+    pass
+
+print("\nPredict", predict)
