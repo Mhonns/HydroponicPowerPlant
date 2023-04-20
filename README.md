@@ -1,11 +1,15 @@
 # HydroponicPowerPlant
-This is my first-year RND project including neural network python script collaborating with Phupha Focus and Keane.
+This is my first-year RND project including neural network and regression
+using python script collaborating with Phupha Focus and Keane.
 
 # Project Advisor
 Dr. Paulo Garcia
 
 # Supervisor
 Mr.Kawisorn Kumtae
+
+# Goal
+To predict the growth rate of the lettuce given the growth factors.
 
 # How to use 
 There are two python files where you can use. 

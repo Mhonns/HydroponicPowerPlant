@@ -27,8 +27,8 @@ intputSize = 3          # the number of input nodes  (light, ph, ec)
 outputSize = 1          # the number of output nodes (px per day)
 hiddenSize = 4          # the number of nodes in hiddenlayers
 hiddenLayerSize = 3     # the number of the hidden layers
-haveSaved = True       # true to use the weight and bias the saved data
-save = False            # admit to save the weight and bias or not
+haveSaved = True        # true to use the weight and bias the saved data
+save = True            # admit to save the weight and bias or not
 getData = False         # use the input data or not
 epoch = 5               # epoch
 
@@ -55,6 +55,9 @@ def sigmoidIng(x):
     return 1 / (1 + np.exp(-x))
 def ReLUIng(x):
     return np.maximum(0, x)
+def LeakyReLUIng(x):
+    x[x < 0] = 0.5 * x[x < 0]
+    return x
 def softmax(x):
     return (np.exp(x)/np.exp(x).sum())
 
@@ -84,9 +87,17 @@ def transposeArray(a):
 # derivative of the ReLU function
 def dActivation(z,grad):
     temp = np.copy(z)
-    temp[temp < 0] = 0
+    temp[temp <= 0] = 0
     temp[temp > 0] = 1
     return temp*grad
+
+# # derivative of the leaky ReLU function
+# def dActivation(z, grad):
+#     temp = np.copy(z)
+#     temp[temp <= 0] = 0.05
+#     temp[temp > 0] = 1
+#     return temp*grad
+
 def dLinear_W(activation,weight,bias,grad):
     # grad: (1 x dim)
     # print(grad.shape)
@@ -110,8 +121,8 @@ def backProp(weightTensor, biasTensor, inputData, activeNodes, predict, label):
     learningRate = 0.001
     lenght = hiddenLayerSize - 2
     # Last Layer
-    dLoss_dpredict = 2 * (predict - label) 
-    dLoss_do = (predict * dLoss_dpredict).reshape(1,1) # (1,1)
+    dLoss_dpredict = 2 * (predict - label)
+    dLoss_do = (dLoss_dpredict).reshape(1,1) # (1,1)
     dLoss_dWeight = dLinear_W(activeNodes[-1],weightTensor[2],biasTensor[2],dLoss_do) # 1x4
     dLoss_dBias = dLinear_b(activeNodes[-1],weightTensor[2],biasTensor[2],dLoss_do) # 1x1
     dLoss_dactivation = dLinear_activation(activeNodes[-1],weightTensor[2],biasTensor[2],dLoss_do) # 1x4
@@ -123,7 +134,6 @@ def backProp(weightTensor, biasTensor, inputData, activeNodes, predict, label):
         dLoss_dWN = dLinear_W(activeNodes[n], weightTensor[1][n], biasTensor[1][n], dLoss_dprerelu) # 4x4 (dLoss_dprerelu.T)@()
         dLoss_dBN = dLinear_b(activeNodes[n], weightTensor[1][n], biasTensor[1][n], dLoss_dprerelu)
         dLoss_dactivation = dLinear_activation(activeNodes[n],weightTensor[1][n],biasTensor[1][n],dLoss_dprerelu)
-        #dLoss_dactivation = dMatrix_activation(activeNodes[n],weightTensor[1][n],biasTensor[1][n],dLoss_dprerelu) # 1x4
         weightTensor[1][n] -= dLoss_dWN * learningRate
         biasTensor[1][n] -= dLoss_dBN * learningRate
     # First Layer
@@ -154,14 +164,14 @@ if (haveSaved == True):
 
 # get the test set
 #   make up data
-label = 1
-inputData = np.array([10, 10, 10]).reshape(1,3) # bz x hiddenSize
+label = 20
+inputData = np.array([1, 1, 1]).reshape(1,3) # bz x hiddenSize
 if getData == True:
     pass
     
-    
 
 predict, activeNodes = forwardProp(weightTensor, biasTensor, inputData)
+print("\nAlphaPredict", predict)
 for i in range(epoch):
     weightTensor, biasTensor = backProp(weightTensor, biasTensor, inputData, activeNodes, predict, label)
     
