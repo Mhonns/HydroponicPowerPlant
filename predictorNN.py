@@ -28,9 +28,9 @@ outputSize = 1          # the number of output nodes (px per day)
 hiddenSize = 4          # the number of nodes in hiddenlayers
 hiddenLayerSize = 3     # the number of the hidden layers
 haveSaved = True        # true to use the weight and bias the saved data
-save = True            # admit to save the weight and bias or not
+save = False            # admit to save the weight and bias or not
 getData = False         # use the input data or not
-epoch = 5               # epoch
+epoch = 10              # epoch
 
 # assign all weights and bias
 def initializeNetwork():
@@ -164,8 +164,8 @@ if (haveSaved == True):
 
 # get the test set
 #   make up data
-label = 20
-inputData = np.array([1, 1, 1]).reshape(1,3) # bz x hiddenSize
+label = 1.004
+inputData = np.array([1.9780603656117435, 0.6520198980681784, 22]).reshape(1,3) # bz x hiddenSize
 if getData == True:
     pass
     
