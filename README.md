@@ -8,7 +8,7 @@ Dr. Paulo Garcia
 # Supervisor
 Mr.Kawisorn Kumtae
 
-# Goal
+# Our Goal
 To predict the growth rate of the lettuce given the growth factors.
 
 # How to use 
